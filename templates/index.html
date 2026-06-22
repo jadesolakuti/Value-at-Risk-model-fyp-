@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio Risk Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg:        #f5f4f0;
+            --surface:   #ffffff;
+            --border:    #e0ddd6;
+            --text:      #1a1a18;
+            --muted:     #6b6860;
+            --accent:    #1c3d5a;
+
+            --pass:      #1a6641;
+            --pass-bg:   #eaf4ee;
+
+            --fail:      #8b2020;
+            --fail-bg:   #fdeaea;
+
+            --mono:      'DM Mono', monospace;
+            --serif:     'DM Serif Display', serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 13px;
+            min-height: 100vh;
+            padding: 48px 24px 80px;
+            line-height: 1.5;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* ───────────────── HEADER ───────────────── */
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 32px;
+            gap: 20px;
+        }
+
+        header h1 {
+            font-family: var(--serif);
+            font-size: 30px;
+            font-weight: 400;
+            letter-spacing: -0.4px;
+        }
+
+        header p {
+            font-size: 11px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ───────────────── SUMMARY ───────────────── */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border: 1px solid var(--border);
+            background: var(--surface);
+            margin-bottom: 36px;
+        }
+
+        .summary-card {
+            padding: 20px;
+        }
+
+        .summary-card:not(:last-child) {
+            border-right: 1px solid var(--border);
+        }
+
+        .summary-card label {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .summary-card .value {
+            font-size: 20px;
+            font-weight: 500;
+        }
+
+        /* ───────────────── BUTTON ───────────────── */
+
+        .btn-wrap {
+            margin-bottom: 36px;
+        }
+
+        #run-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+
+            background: var(--accent);
+            color: white;
+
+            border: none;
+            padding: 12px 24px;
+
+            font-family: var(--mono);
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+
+            cursor: pointer;
+
+            transition:
+                opacity 0.2s ease,
+                transform 0.15s ease;
+        }
+
+        #run-btn:hover {
+            opacity: 0.88;
+            transform: translateY(-1px);
+        }
+
+        #run-btn:active {
+            transform: translateY(0);
+        }
+
+        #run-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ───────────────── LOADER ───────────────── */
+
+        #loader {
+            display: none;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 32px;
+
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.06em;
+        }
+
+        #loader.visible {
+            display: flex;
+        }
+
+        .loader-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 18px;
+        }
+
+        .loader-bars span {
+            width: 3px;
+            border-radius: 2px;
+            background: var(--accent);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .loader-bars span:nth-child(1) { height: 8px; animation-delay: 0s; }
+        .loader-bars span:nth-child(2) { height: 14px; animation-delay: 0.15s; }
+        .loader-bars span:nth-child(3) { height: 10px; animation-delay: 0.3s; }
+        .loader-bars span:nth-child(4) { height: 16px; animation-delay: 0.45s; }
+        .loader-bars span:nth-child(5) { height: 8px; animation-delay: 0.6s; }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.35;
+                transform: scaleY(0.6);
+            }
+            50% {
+                opacity: 1;
+                transform: scaleY(1);
+            }
+        }
+
+        /* ───────────────── RESULTS ───────────────── */
+
+        #results {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+
+            opacity: 0;
+            transform: translateY(10px);
+
+            transition:
+                opacity 0.4s ease,
+                transform 0.4s ease;
+        }
+
+        #results.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .method-label {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: -24px;
+        }
+
+        /* ───────────────── METHOD BLOCK ───────────────── */
+
+        .method-block,
+        .stress-block {
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+
+        .method-header,
+        .stress-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .method-header h2,
+        .stress-header {
+            font-family: var(--serif);
+            font-size: 20px;
+            font-weight: 400;
+        }
+
+        .method-top {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .metrics-panel {
+            padding: 24px 20px;
+            border-right: 1px solid var(--border);
+
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .metric-group label,
+        .stress-cell label {
+            display: block;
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 5px;
+        }
+
+        .metric-group .value,
+        .stress-cell .value {
+            font-size: 24px;
+            font-weight: 500;
+            letter-spacing: -0.5px;
+        }
+
+        .metric-divider {
+            height: 1px;
+            background: var(--border);
+        }
+
+        .chart-panel {
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chart-panel img {
+            max-width: 100%;
+            max-height: 420px;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* ───────────────── STATS ───────────────── */
+
+        .method-bottom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .stat-panel {
+            padding: 20px;
+        }
+
+        .stat-panel:first-child {
+            border-right: 1px solid var(--border);
+        }
+
+        .stat-panel h3 {
+            font-size: 10px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 14px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-row .key {
+            color: var(--muted);
+        }
+
+        .stat-row .val {
+            font-weight: 500;
+        }
+
+        /* ───────────────── BADGES ───────────────── */
+
+        .result-badge {
+            display: inline-block;
+            padding: 3px 10px;
+
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+        }
+
+        .result-badge.pass {
+            background: var(--pass-bg);
+            color: var(--pass);
+        }
+
+        .result-badge.fail {
+            background: var(--fail-bg);
+            color: var(--fail);
+        }
+
+        /* ───────────────── STRESS GRID ───────────────── */
+
+        .stress-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .stress-cell {
+            padding: 24px 20px;
+        }
+
+        .stress-cell:not(:last-child) {
+            border-right: 1px solid var(--border);
+        }
+
+        /* ───────────────── FOOTER ───────────────── */
+
+        footer {
+            margin-top: 48px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        /* ───────────────── RESPONSIVE ───────────────── */
+
+        @media (max-width: 768px) {
+
+            body {
+                padding: 32px 16px 64px;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .summary-grid,
+            .method-top,
+            .method-bottom,
+            .stress-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-card,
+            .metrics-panel,
+            .stress-cell,
+            .stat-panel:first-child {
+                border-right: none !important;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .summary-card:last-child,
+            .stress-cell:last-child {
+                border-bottom: none;
+            }
+
+            .metric-group .value,
+            .stress-cell .value {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<main>
+
+    <header>
+        <div>
+            <h1>Portfolio Risk Dashboard</h1>
+        </div>
+
+        <p>
+            Value at Risk · Expected Shortfall · Backtesting
+        </p>
+    </header>
+
+    <!-- Portfolio Summary -->
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+            <label>Confidence Level</label>
+            <div class="value">95%</div>
+        </div>
+
+        <div class="summary-card">
+            <label>Time Horizon</label>
+            <div class="value">1 Day</div>
+        </div>
+
+        <div class="summary-card">
+            <label>Data Window</label>
+            <div class="value">2021-2025</div>
+        </div>
+
+        <div class="summary-card">
+            <label>Models</label>
+            <div class="value">3</div>
+        </div>
+
+    </section>
+
+    <!-- Button -->
+
+    <div class="btn-wrap">
+        <button id="run-btn" onclick="runModel()">
+
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <polygon points="3,1 12,6.5 3,12" fill="white"/>
+            </svg>
+
+            Run VaR Analysis
+        </button>
+    </div>
+
+    <!-- Loader -->
+
+    <div id="loader">
+
+        <div class="loader-bars">
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        Computing risk metrics...
+
+    </div>
+
+    <!-- Results -->
+
+    <section id="results"></section>
+
+    <!-- Footer -->
+
+    <footer>
+        <span>
+            95% Confidence Level · Kupiec POF Test · χ²(1) Critical Value 3.8415
+        </span>
+
+        <span id="footer-date"></span>
+    </footer>
+
+</main>
+
+<script>
+
+    document.getElementById('footer-date').textContent =
+        new Date().toLocaleDateString('en-GB', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+    function formatCurrency(value) {
+
+        const abs = Math.abs(value);
+
+        return `${value < 0 ? '-$' : '$'}${abs.toLocaleString('en-GB', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        })}`;
+    }
+
+    function methodBlock(label, d) {
+
+        const badge = d.kupiec.passed
+            ? `<span class="result-badge pass">PASS</span>`
+            : `<span class="result-badge fail">FAIL</span>`;
+
+        const chart = d.plot
+            ? `<img src="data:image/png;base64,${d.plot}" alt="${label} plot">`
+            : `<div style="color:var(--muted)">No chart available</div>`;
+
+        return `
+
+        <article class="method-block">
+
+            <div class="method-header">
+                <h2>${label}</h2>
+            </div>
+
+            <div class="method-top">
+
+                <div class="metrics-panel">
+
+                    <div class="metric-group">
+                        <label>Value at Risk (95%)</label>
+                        <div class="value">${formatCurrency(d.VaR)}</div>
+                    </div>
+
+                    <div class="metric-divider"></div>
+
+                    <div class="metric-group">
+                        <label>Expected Shortfall</label>
+                        <div class="value">${formatCurrency(d.ES)}</div>
+                    </div>
+
+                </div>
+
+                <div class="chart-panel">
+                    ${chart}
+                </div>
+
+            </div>
+
+            <div class="method-bottom">
+
+                <div class="stat-panel">
+
+                    <h3>Backtesting</h3>
+
+                    <div class="stat-row">
+                        <span class="key">Breaches</span>
+                        <span class="val">${d.backtest.breaches}</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <span class="key">Total Days</span>
+                        <span class="val">${d.backtest.total_days}</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <span class="key">Breach Ratio</span>
+                        <span class="val">${(d.backtest.breach_ratio * 100).toFixed(2)}%</span>
+                    </div>
+
+                </div>
+
+                <div class="stat-panel">
+
+                    <h3>Kupiec POF Test</h3>
+
+                    <div class="stat-row">
+                        <span class="key">LR Statistic</span>
+                        <span class="val">${d.kupiec.LR_pof.toFixed(4)}</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <span class="key">Critical Value</span>
+                        <span class="val">${d.kupiec.critical_value.toFixed(4)}</span>
+                    </div>
+
+                    <div class="stat-row">
+                        <span class="key">Result</span>
+                        <span class="val">${badge}</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </article>
+        `;
+    }
+
+    async function runModel() {
+
+        const btn = document.getElementById('run-btn');
+        const loader = document.getElementById('loader');
+        const results = document.getElementById('results');
+
+        btn.disabled = true;
+
+        loader.classList.add('visible');
+
+        results.classList.remove('visible');
+        results.innerHTML = '';
+
+        try {
+
+            const response = await fetch('/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Server response failed');
+            }
+
+            const data = await response.json();
+
+            results.innerHTML = `
+
+                <div class="method-label">
+                    01 — Historical Simulation
+                </div>
+
+                ${methodBlock('Historical VaR', data.historical)}
+
+                <div class="method-label">
+                    02 — Parametric (Variance-Covariance)
+                </div>
+
+                ${methodBlock('Parametric VaR', data.parametric)}
+
+                <div class="method-label">
+                    03 — Monte Carlo Simulation
+                </div>
+
+                ${methodBlock('Monte Carlo VaR', data.monte_carlo)}
+
+               
+            `;
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    results.classList.add('visible');
+                });
+            });
+
+        }
+
+        catch (err) {
+
+            results.innerHTML = `
+                <div style="
+                    padding:20px;
+                    border:1px solid var(--fail);
+                    background:var(--fail-bg);
+                    color:var(--fail);
+                ">
+                    Error fetching data. Ensure the Flask server is running correctly.
+                </div>
+            `;
+
+            results.classList.add('visible');
+        }
+
+        finally {
+
+            loader.classList.remove('visible');
+            btn.disabled = false;
+        }
+    }
+
+</script>
+
+</body>
+</html>
